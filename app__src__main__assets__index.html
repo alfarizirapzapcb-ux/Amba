@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Nexus</title>
+<style>
+:root{--bg:#0e1514;--card:#1a2322;--ac:#3df0b0;--ac2:#1d6b55;--tx:#e8f2ef;--mu:#7d918c}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,sans-serif;min-height:100vh;padding:20px 16px 110px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+.logo{width:38px;height:38px;border-radius:10px;background:var(--ac);color:#04281d;font-weight:900;display:grid;place-items:center;font-size:20px}
+header h1{font-size:20px;margin:0;flex:1;letter-spacing:2px}
+.pill{background:var(--ac2);padding:8px 20px;border-radius:20px;font-weight:700;font-size:14px}
+.card{background:var(--card);border-radius:22px;padding:18px;margin-bottom:14px}
+.row{display:flex;align-items:center;gap:14px}
+.ring{width:54px;height:54px;border-radius:50%;border:5px solid var(--ac);display:grid;place-items:center}
+.sec{display:flex;justify-content:space-between;align-items:center;margin:22px 0 12px}
+.sec h2{font-size:16px;margin:0;color:#a8c0b9;letter-spacing:1px}
+button{font:inherit;color:inherit;border:0;cursor:pointer}
+.add{background:var(--card);padding:10px 16px;border-radius:20px;color:var(--mu);font-weight:600}
+.game{display:flex;align-items:center;gap:14px;background:var(--card);border-radius:22px;padding:14px;margin-bottom:10px;border:2px solid transparent}
+.game.sel{border-color:var(--ac)}
+.ic{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--ac),#2a7de1);display:grid;place-items:center;font-weight:800;color:#04281d;font-size:20px}
+.game b{flex:1;font-size:17px}
+.del{background:none;color:var(--mu);font-size:20px}
+nav{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:6px;background:var(--card);padding:6px;border-radius:40px}
+nav button{background:none;padding:14px 20px;border-radius:30px;font-weight:700;color:var(--mu)}
+nav .go{background:var(--ac2);color:#fff}
+#toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#252d3a;padding:12px 18px;border-radius:12px;opacity:0;transition:.3s;pointer-events:none;font-size:14px;white-space:nowrap}
+#toast.on{opacity:1}
+#pick,#set{position:fixed;inset:0;background:var(--bg);padding:16px;overflow:auto;display:none;z-index:5}
+#pick input{width:100%;padding:14px;border-radius:14px;border:0;background:var(--card);color:var(--tx);font-size:16px;margin-bottom:12px}
+</style></head><body>
+<header><div class="logo">N</div><h1>NEXUS</h1><span class="pill">ID</span></header>
+<div class="card row"><div class="ring">⚡</div><div><div style="color:#a8c0b9">Mode Performa</div><b style="font-size:22px" id="mode">Seimbang</b></div></div>
+<div class="sec"><h2>PERPUSTAKAAN GAME</h2><button class="add" onclick="openPick()">+ Tambah Game</button></div>
+<div id="list"></div>
+<div id="pick"><input id="q" placeholder="Cari aplikasi..." oninput="drawPick()"><div id="plist"></div><button class="add" style="width:100%;margin-top:10px" onclick="closePick()">Tutup</button></div>
+<div id="set"><h2 style="letter-spacing:1px;color:#a8c0b9">PENGATURAN</h2>
+<div class="card"><b>Nexus Touch</b> <span id="svc" style="color:var(--ac)"></span><p style="color:var(--mu);font-size:14px">Tombol layar virtual saat bermain. Aktifkan lewat Aksesibilitas.</p><button class="add" onclick="setSvc()">Buka Aksesibilitas</button></div>
+<div class="card"><b>Ukuran tombol</b><input id="sz" type="range" min="40" max="90" onchange="setPref('size',this.value)" style="width:100%"><b>Opasitas tombol</b><input id="al" type="range" min="20" max="100" onchange="setPref('alpha',this.value)" style="width:100%"></div>
+<div class="card" style="color:var(--mu);font-size:14px;line-height:1.6"><b style="color:var(--tx)">Cara pakai</b><br>1. Aktifkan Nexus Touch.<br>2. Pilih game, ketuk Mulai Game.<br>3. Overlay muncul otomatis saat game terbuka. ＋ = tombol ketuk, A = pad bidik (geser).<br>4. Seret tombol ke posisi, seret titik merah ke tempat yang mau diketuk/dibidik.<br>5. Mode edit: ketuk tombol = turbo ⚡, tahan lama = hapus. ▶ main, ✎ edit.<br>6. ⚙ di overlay: Nexus Genie (sensitivitas, crosshair, kecerahan, volume, salin/tempel konfigurasi). Tersimpan per game.</div>
+<button class="add" style="width:100%" onclick="closeSet()">Tutup</button></div>
+<div id="toast"></div>
+<nav><button class="go" onclick="play()">🎮 Mulai Game</button><button onclick="mode()">⚡</button><button onclick="openSet()">⚙</button></nav>
+<script>
+let games=JSON.parse(localStorage.nxg2||'[]'),sel=0,modes=['Hemat','Seimbang','Maksimal'],m=+localStorage.nxm||1,apps=[];
+const $=id=>document.getElementById(id);
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function save(){localStorage.nxg2=JSON.stringify(games);if(window.Android)Android.setGames(JSON.stringify(games.map(g=>g.pkg)))}
+function toast(s){const t=$('toast');t.textContent=s;t.className='on';setTimeout(()=>t.className='',1800)}
+function render(){$('mode').textContent=modes[m];
+$('list').innerHTML=games.length?games.map((g,i)=>`<div class="game ${i==sel?'sel':''}" onclick="sel=${i};render()"><div class="ic">${esc(g.name[0]||'?').toUpperCase()}</div><b>${esc(g.name)}</b><button class="del" onclick="event.stopPropagation();games.splice(${i},1);sel=0;save();render()">✕</button></div>`).join(''):'<p style="color:var(--mu);text-align:center;margin-top:40px">Belum ada game. Ketuk "+ Tambah Game".</p>'}
+function openPick(){
+ if(!window.Android){toast('Hanya jalan di aplikasi Android');return}
+ try{apps=JSON.parse(Android.getApps()).sort((a,b)=>a.name.localeCompare(b.name))}catch(e){apps=[]}
+ $('q').value='';drawPick();$('pick').style.display='block'}
+function closePick(){$('pick').style.display='none'}
+function drawPick(){const q=$('q').value.toLowerCase();
+ $('plist').innerHTML=apps.map((a,i)=>[a,i]).filter(([a])=>a.name.toLowerCase().includes(q)).map(([a,i])=>`<div class="game" onclick="addApp(${i})"><div class="ic">${esc(a.name[0]||'?').toUpperCase()}</div><b>${esc(a.name)}</b></div>`).join('')}
+function addApp(i){const a=apps[i];if(!games.some(g=>g.pkg==a.pkg))games.push(a);save();closePick();render()}
+function mode(){m=(m+1)%3;localStorage.nxm=m;render();toast('Mode: '+modes[m])}
+function play(){if(!games.length)return toast('Tambah game dulu');
+ if(!window.Android)return toast('Hanya jalan di aplikasi Android');
+ const g=games[sel];
+ if(Android.serviceOn())Android.overlay(g.pkg);else toast('Nexus Touch belum aktif, buka ⚙');
+ if(!Android.launch(g.pkg))toast('Game tidak ditemukan')}
+function openSet(){const a=window.Android;
+ $('svc').textContent=a&&a.serviceOn()?'Aktif ✓':'Belum aktif';
+ $('sz').value=a?a.getInt('size',56):56;$('al').value=a?a.getInt('alpha',60):60;
+ $('set').style.display='block'}
+function closeSet(){$('set').style.display='none'}
+function setSvc(){if(window.Android)Android.openAccessibility()}
+function setPref(k,v){if(window.Android)Android.setInt(k,+v)}
+save();render();
+</script></body></html>
