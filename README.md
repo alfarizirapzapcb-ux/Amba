@@ -1,1 +1,29 @@
-# Amba
+name: Build APK
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Susun folder
+        run: |
+          for f in *__*; do
+            n=$(echo "$f" | sed 's/__/\//g')
+            mkdir -p "$(dirname "$n")"
+            mv "$f" "$n"
+          done
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+      - run: gradle assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Nexus-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
